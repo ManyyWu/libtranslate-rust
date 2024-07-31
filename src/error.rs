@@ -2,9 +2,6 @@ use thiserror;
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum Error {
-    #[error("system error")]
-    System,
-
     #[error("the detector's strategy is not specified")]
     NoDetectorRegistrationService,
 

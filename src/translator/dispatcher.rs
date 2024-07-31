@@ -1,15 +1,34 @@
-use crate::{Language, Result};
 use crate::Translation;
 use crate::error::Error;
-use crate::api::{DetectorAPIContainer, TranslatorAPIContainer, DetectorAPI, TranslatorAPI, Request};
-use crate::api::google::google_translate::{API_MobileGoogleTranslate, API_GoogleTranslateExtensions, API_GoogleDictionaryChromeExtension};
+use crate::{
+    Language,
+    Result
+};
+use crate::api::{
+    DetectorAPIContainer,
+    TranslatorAPIContainer,
+    DetectorAPI,
+    TranslatorAPI,
+    Request
+};
+use crate::api::google::google_translate::{
+    API_MobileGoogleTranslate,
+    API_GoogleTranslateExtensions,
+    API_GoogleDictionaryChromeExtension
+};
 
 use std::convert::Into;
 use std::collections::HashMap;
 use std::sync::OnceLock;
-use std::time::{Duration, Instant};
 use std::cmp::max;
-use rand::{thread_rng, Rng};
+use std::time::{
+    Duration,
+    Instant
+};
+use rand::{
+    thread_rng,
+    Rng
+};
 
 static DEFAULT_DETECTOR_SERVICE_LIST: OnceLock<HashMap<&'static str, (DetectorAPIContainer, u64)>> = OnceLock::new();
 static DEFAULT_TRANSLATOR_SERVICE_LIST: OnceLock<HashMap<&'static str, (TranslatorAPIContainer, u64)>> = OnceLock::new();

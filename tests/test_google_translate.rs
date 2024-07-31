@@ -1,11 +1,13 @@
 use std::time::Duration;
 use libtranslate::*;
+use libtranslate::Strategy::*;
 
 #[tokio::test]
 async fn test() {
     let mut t = Translator::builder()
         .to(Language::SimpleChinese)
         .timeout(Duration::from_millis(3000))
+        .strategy(Mix(vec!["google.API_MobileGoogleTranslate".to_string(), "google.API_GoogleDictionaryChromeExtension".to_string(), "google.API_GoogleTranslateExtensions".to_string()]))
         .build()
         .unwrap();
 

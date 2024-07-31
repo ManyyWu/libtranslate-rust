@@ -5,7 +5,11 @@ use crate::Error;
 use crate::Language;
 use crate::Translation;
 use crate::translator::dispatcher::Dispatcher;
-use crate::api::{DetectorAPIContainer, TranslatorAPIContainer, Request};
+use crate::api::{
+    DetectorAPIContainer,
+    TranslatorAPIContainer,
+    Request
+};
 
 use std::rc::Rc;
 use std::cell::RefCell;

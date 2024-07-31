@@ -2,7 +2,14 @@ use crate::Result;
 use crate::Error;
 use crate::Language;
 use crate::error::constant;
-use crate::api::{DetectorAPI, TranslatorAPI, DetectorAPIContainer, TranslatorAPIContainer , Request, Translation};
+use crate::api::{
+    DetectorAPI,
+    TranslatorAPI,
+    DetectorAPIContainer,
+    TranslatorAPIContainer,
+    Request,
+    Translation
+};
 
 use serde_json;
 use scraper;
