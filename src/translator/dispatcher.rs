@@ -72,9 +72,9 @@ pub(crate) struct Service<T: 'static> {
     api: &'static T,
     status: ServiceStatus,
     last_error: Option<Error>,
+    last_error_time: Option<Instant>,
     init_weight: u64,
     succ_req_times: u64,
-    // timeout_req_times: u64,
     total_req_times: u64,
     consecutive_succ_req_times: u64,
 }
@@ -85,6 +85,7 @@ impl<T> Service<T> {
             api: api,
             status: ServiceStatus::Ready,
             last_error: None,
+            last_error_time: None,
             init_weight: weight,
             succ_req_times: 0,
             total_req_times: 0,
@@ -187,30 +188,36 @@ impl<T: DefaultAPI<T>> Dispatcher<T> {
         Ok((name.to_string(), self.registry.get_mut(&name).unwrap()))
     }
 
-    pub(crate) fn result_handler<S, R>(service: &mut Service<S>, result: Result<R>) -> Result<R>
+    pub(crate) fn handle_result<S, R>(service: &mut Service<S>, result: &Result<R>, begin_time: Instant)
         where R: std::fmt::Debug {
+
         match result {
             Ok(result) => {
                 service.last_error = None;
+                service.last_error_time = None;
                 service.succ_req_times += 1;
                 service.total_req_times += 1;
                 service.consecutive_succ_req_times += 1;
                 service.status = ServiceStatus::Ready;
-                Ok(result)
             },
             Err(e) => {
                 service.last_error = Some(e.clone());
                 service.total_req_times += 1;
                 service.consecutive_succ_req_times = 0;
-                service.status = match service.status {
-                    ServiceStatus::Ready => ServiceStatus::Retry((3, Instant::now() + Duration::from_millis(1_000))),
-                    ServiceStatus::Retry((n, _)) if n > 1 => ServiceStatus::Retry((n - 1, Instant::now() + Duration::from_millis(1_000))),
-                    ServiceStatus::Retry((n, _)) if n == 1 => ServiceStatus::Blocking(1, Instant::now() + Duration::from_millis(3_000)),
-                    ServiceStatus::Blocking(1, _) => ServiceStatus::Blocking(2, Instant::now() + Duration::from_millis(60_000)),
-                    ServiceStatus::Blocking(2, _) => ServiceStatus::Blocking(3, Instant::now() + Duration::from_millis(300_000)),
-                    _ => ServiceStatus::Blocking(3, Instant::now() + Duration::from_millis(3600_000)),
-                };
-                Err(e.clone())
+
+                if service.last_error_time.is_none() {
+                    service.last_error_time = Some(Instant::now());
+                }
+                if Instant::now() - service.last_error_time.unwrap() > Duration::from_secs(1) {
+                    service.status = match service.status {
+                        ServiceStatus::Ready => ServiceStatus::Retry((3, Instant::now() + Duration::from_millis(1_000))),
+                        ServiceStatus::Retry((n, _)) if n > 1 => ServiceStatus::Retry((n - 1, Instant::now() + Duration::from_millis(1_000))),
+                        ServiceStatus::Retry((n, _)) if n == 1 => ServiceStatus::Blocking(1, Instant::now() + Duration::from_millis(3_000)),
+                        ServiceStatus::Blocking(1, _) => ServiceStatus::Blocking(2, Instant::now() + Duration::from_millis(60_000)),
+                        ServiceStatus::Blocking(2, _) => ServiceStatus::Blocking(3, Instant::now() + Duration::from_millis(300_000)),
+                        _ => ServiceStatus::Blocking(3, Instant::now() + Duration::from_millis(3600_000)),
+                    };
+                }
             },
         }
     }
@@ -229,8 +236,10 @@ impl<T: DefaultAPI<T> + DetectorAPI> Dispatcher<T> {
         self.registry.iter().for_each(|(k, v)| { services.insert(k.to_string(), self.calc_weight(v)); });
 
         loop {
+            let begin_time = Instant::now();
             let (name, service) = self.dispatch(&mut services)?;
-            let result = Dispatcher::<T>::result_handler(service, service.api.language(request, text.as_ref()).await);
+            let result = service.api.language(request, text.as_ref()).await;
+            Dispatcher::<T>::handle_result(service, &result, begin_time);
             if result.is_ok() {
                 return result;
             };
@@ -246,7 +255,9 @@ impl<T: DefaultAPI<T> + TranslatorAPI> Dispatcher<T> {
 
         loop {
             let (name, service) = self.dispatch(&mut services)?;
-            let result = Dispatcher::<T>::result_handler(service, service.api.translate(request, text.as_ref(), source, target).await);
+            let begin_time = Instant::now();
+            let result = service.api.translate(request, text.as_ref(), source, target).await;
+            Dispatcher::<T>::handle_result(service, &result, begin_time);
             if result.is_ok() {
                 return result;
             };
