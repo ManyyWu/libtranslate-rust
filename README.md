@@ -75,8 +75,6 @@ Mix(vec![ "google.API_MobileGoogleTranslate".to_string(), "google.API_GoogleDict
 
 `libtranslate` uses all supported APIs by default.
 > Note: Detector does not support `google.API_MobileGoogleTranslate`
-### 1.4 Notice
-Each Translator/Detector instance has a state machine data. To ensure that the strategy is as expected, please access the Translator/Detector instance in a single thread.
 
 ## 2. Reference
 [libretranslate-rs](https://github.com/grantshandy/libretranslate-rs)
