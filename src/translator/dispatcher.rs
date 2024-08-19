@@ -188,11 +188,11 @@ impl<T: DefaultAPI<T>> Dispatcher<T> {
         Ok((name.to_string(), self.registry.get_mut(&name).unwrap()))
     }
 
-    pub(crate) fn handle_result<S, R>(service: &mut Service<S>, result: &Result<R>, begin_time: Instant)
+    pub(crate) fn handle_result<S, R>(service: &mut Service<S>, result: &Result<R>)
         where R: std::fmt::Debug {
 
         match result {
-            Ok(result) => {
+            Ok(_result) => {
                 service.last_error = None;
                 service.last_error_time = None;
                 service.succ_req_times += 1;
@@ -236,10 +236,9 @@ impl<T: DefaultAPI<T> + DetectorAPI> Dispatcher<T> {
         self.registry.iter().for_each(|(k, v)| { services.insert(k.to_string(), self.calc_weight(v)); });
 
         loop {
-            let begin_time = Instant::now();
             let (name, service) = self.dispatch(&mut services)?;
             let result = service.api.language(request, text.as_ref()).await;
-            Dispatcher::<T>::handle_result(service, &result, begin_time);
+            Dispatcher::<T>::handle_result(service, &result);
             if result.is_ok() {
                 return result;
             };
@@ -255,9 +254,8 @@ impl<T: DefaultAPI<T> + TranslatorAPI> Dispatcher<T> {
 
         loop {
             let (name, service) = self.dispatch(&mut services)?;
-            let begin_time = Instant::now();
             let result = service.api.translate(request, text.as_ref(), source, target).await;
-            Dispatcher::<T>::handle_result(service, &result, begin_time);
+            Dispatcher::<T>::handle_result(service, &result);
             if result.is_ok() {
                 return result;
             };

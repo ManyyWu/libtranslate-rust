@@ -68,13 +68,13 @@ pub(crate) struct Request {
 }
 
 impl Request {
-    pub(crate) fn new(timeout: Duration) -> Result<Request> {
+    pub(crate) fn new(timeout: Duration) -> Result<Self> {
         let client = reqwest::Client::builder()
             .timeout(timeout)
             .build();
 
         match client {
-            Ok(client) => { Ok(Request { client }) },
+            Ok(client) => { Ok(Self { client }) },
             Err(e) => { return Err(Error::ReqwestError(e.to_string())); }
         }
     }

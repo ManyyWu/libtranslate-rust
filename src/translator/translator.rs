@@ -33,8 +33,6 @@ pub enum TranslatorType {
 
 #[derive(Debug)]
 pub(crate) struct Config {
-    source: Language,
-    target: Option<Language>,
     strategy: Strategy,
     timeout: Duration,
 }
@@ -50,16 +48,14 @@ pub struct DetectorBuilder {
 }
 
 impl DetectorBuilder {
-    pub fn new() -> DetectorBuilder {
-        DetectorBuilder::default()
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    pub fn default() -> DetectorBuilder {
+    pub fn default() -> Self {
         Self {
             config: Config {
                 strategy: Strategy::Default,
-                source: Language::Auto,
-                target: None,
                 timeout: Duration::from_millis(DEFAULT_TIMEOUT_MILLIS),
             }
         }
@@ -81,12 +77,12 @@ impl DetectorBuilder {
         })
     }
 
-    pub fn strategy(mut self, strategy: Strategy) -> DetectorBuilder {
+    pub fn strategy(mut self, strategy: Strategy) -> Self {
         self.config.strategy = strategy;
         self
     }
 
-    pub fn timeout(mut self, timeout: Duration) -> DetectorBuilder {
+    pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = timeout;
         self
     }
@@ -107,32 +103,20 @@ pub struct TranslatorBuilder {
 }
 
 impl TranslatorBuilder {
-    pub fn new() -> TranslatorBuilder {
-        TranslatorBuilder::default()
+    pub fn new() -> Self{
+        Self::default()
     }
 
-    fn default() -> TranslatorBuilder {
+    fn default() -> Self {
         Self {
             config: Config {
                 strategy: Strategy::Default,
-                source: Language::Auto,
-                target: None,
                 timeout: Duration::from_millis(DEFAULT_TIMEOUT_MILLIS),
             }
         }
     }
 
     pub fn build(self) -> Result<Translator> {
-        let Some(target) = &self.config.target else {
-            return Err(Error::NoTargetLanguage);
-        };
-        if *target == Language::Auto {
-            return Err(Error::TargetLanguageIsAuto);
-        }
-        if *target == self.config.source {
-            return Err(Error::TargetEqualToSource);
-        }
-
         let dispatcher: Dispatcher<TranslatorAPIContainer> = match &self.config.strategy {
             Strategy::Default => Dispatcher::default()?,
             Strategy::Single(name) => Dispatcher::new(vec![name.clone()])?,
@@ -148,22 +132,12 @@ impl TranslatorBuilder {
         })
     }
 
-    pub fn from(mut self, source: Language) -> TranslatorBuilder {
-        self.config.source = source;
-        self
-    }
-
-    pub fn to(mut self, target: Language) -> TranslatorBuilder {
-        self.config.target = Some(target);
-        self
-    }
-
-    pub fn strategy(mut self, strategy: Strategy) -> TranslatorBuilder {
+    pub fn strategy(mut self, strategy: Strategy) -> Self {
         self.config.strategy = strategy;
         self
     }
 
-    pub fn timeout(mut self, timeout: Duration) -> TranslatorBuilder {
+    pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = timeout;
         self
     }
@@ -180,8 +154,14 @@ impl Translator {
         TranslatorBuilder::new()
     }
 
-    pub async fn translate(&mut self, text: &str) -> Result<Translation> {
-        self.dispatcher.dispatch_translator(&self.request, text, self.config.source, self.config.target.unwrap()).await
+    pub async fn translate(&mut self, text: &str, source: Language, target: Language) -> Result<Translation> {
+        if target == Language::Auto {
+            return Err(Error::TargetLanguageIsAuto);
+        }
+        if target == source {
+            return Err(Error::TargetEqualToSource);
+        }
+        self.dispatcher.dispatch_translator(&self.request, text, source, target).await
     }
 
     pub fn last_error(&self, api: &str) -> Option<Error> {
@@ -191,13 +171,13 @@ impl Translator {
 
 thread_local! {
     static DEFAULT_DETECTOR: Rc<RefCell<Detector>> = Rc::new(RefCell::new(Detector::builder().build().unwrap()));
-    static DEFAULT_TRANSLATOR: Rc<RefCell<Translator>> = Rc::new(RefCell::new(Translator::builder().to(Language::English).build().unwrap()));
+    static DEFAULT_TRANSLATOR: Rc<RefCell<Translator>> = Rc::new(RefCell::new(Translator::builder().build().unwrap()));
 }
 
 pub async fn translate(text: &str, source: Language, target: Language) -> Result<Translation> {
     let translator = DEFAULT_TRANSLATOR.with(|r| { r.clone() });
     let translator = &mut *(*translator).borrow_mut();
-    translator.dispatcher.dispatch_translator(&translator.request, text, source, target).await
+    translator.translate(text, source, target).await
 }
 
 pub async fn language(text: &str) -> Result<Language> {
@@ -226,16 +206,12 @@ mod tests {
         );
 
         assert!(matches!(Translator::builder()
-            .from(Language::English)
-            .to(Language::English)
             .strategy(Strategy::Default)
             .build(),
             Err(Error::TargetEqualToSource))
         );
 
         assert!(matches!(Translator::builder()
-            .from(Language::English)
-            .to(Language::Auto)
             .strategy(Strategy::Default)
             .build(),
             Err(Error::TargetLanguageIsAuto))
@@ -243,16 +219,12 @@ mod tests {
 
         assert!(matches!(
             Translator::builder()
-            .from(Language::Auto)
-            .to(Language::SimpleChinese)
             .strategy(Strategy::Mix(vec![]))
             .build(),
             Err(Error::NoTranslatorRegistrationService))
         );
 
         assert!(matches!(Translator::builder()
-            .from(Language::Auto)
-            .to(Language::SimpleChinese)
             .strategy(Strategy::Single(String::new()))
             .build(),
             Err(Error::InvalidServiceName))
