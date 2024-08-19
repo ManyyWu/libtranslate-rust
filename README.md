@@ -17,7 +17,6 @@ use libtranslate::*;
 #[tokio::test]
 async fn test() {
     let mut t = Translator::builder()
-        .to(Language::SimpleChinese)
         .timeout(Duration::from_millis(3000))
         .build()
         .unwrap();
@@ -27,7 +26,7 @@ async fn test() {
         .build()
         .unwrap();
 
-    println!("{:#?}", t.translate("Hello world").await);
+    println!("{:#?}", t.translate("Hello world", Language::Auto, Language::SimpleChinese).await);
     println!("{:#?}", d.language("Hello world").await);
 
     println!("{:#?}", translate("Hello world", Language::Auto, Language::SimpleChinese).await);
@@ -35,23 +34,7 @@ async fn test() {
 }
 ```
 ### 1.3 Builder
-#### 1.3.1 Specify source and target languages
-```Rust
-Translator::builder()
-    .from(Language::SimpleChinese)
-    .to(Language::English)
-    .strategy(Strategy::Default)
-    .build();
-```
-#### 1.3.2 Specify target language and automatically detect language
-```Rust
-Translator::builder()
-    .from(Language::Auto)
-    .to(Language::English)
-    .strategy(Strategy::Default)
-    .build();
-```
-#### 1.3.3 Stratety
+#### 1.3.1 Stratety
 You can specify single or multiple APIs. The definition of Strategy is as follows:
 ```Rust
 pub enum Strategy {
